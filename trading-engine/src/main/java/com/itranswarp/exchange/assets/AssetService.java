@@ -1,7 +1,7 @@
 package com.itranswarp.exchange.assets;
 
 import com.itranswarp.exchange.enums.AssetEnum;
-import com.itranswarp.exchange.support.AbstractLogger;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -9,8 +9,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@Slf4j
 @Service
-public class AssetService extends AbstractLogger {
+public class AssetService {
     // UserId -> Map(AssetEnum -> Assets[available/frozen])
     final ConcurrentMap<Long, ConcurrentMap<AssetEnum, Asset>> userAssets = new ConcurrentHashMap<>();
 
@@ -36,8 +37,8 @@ public class AssetService extends AbstractLogger {
 
     public boolean tryFreeze(Long userId, AssetEnum assetId, BigDecimal amount) {
         boolean ok = tryTransfer(Transfer.AVAILABLE_TO_FROZEN, userId, userId, assetId, amount, true);
-        if (ok && logger.isDebugEnabled()) {
-            logger.debug("freezed user {}, asset {}, amount {}", userId, assetId, amount);
+        if (ok && log.isDebugEnabled()) {
+            log.debug("freezed user {}, asset {}, amount {}", userId, assetId, amount);
         }
         return ok;
     }
@@ -47,8 +48,8 @@ public class AssetService extends AbstractLogger {
             throw new RuntimeException(
                     "Unfreeze failed for user " + userId + ", asset = " + assetId + ", amount = " + amount);
         }
-        if (logger.isDebugEnabled()) {
-            logger.debug("unfreezed user {}, asset {}, amount {}", userId, assetId, amount);
+        if (log.isDebugEnabled()) {
+            log.debug("unfreezed user {}, asset {}, amount {}", userId, assetId, amount);
         }
     }
 
@@ -57,8 +58,8 @@ public class AssetService extends AbstractLogger {
             throw new RuntimeException("Transfer failed for " + type + ", from user " + fromUser + " to user " + toUser
                     + ", asset = " + assetId + ", amount = " + amount);
         }
-        if (logger.isDebugEnabled()) {
-            logger.debug("transfer asset {}, from {} => {}, amount {}", assetId, fromUser, toUser, amount);
+        if (log.isDebugEnabled()) {
+            log.debug("transfer asset {}, from {} => {}, amount {}", assetId, fromUser, toUser, amount);
         }
     }
 
