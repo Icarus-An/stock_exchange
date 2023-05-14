@@ -1,9 +1,8 @@
 package com.itranswarp.exchange.messaging;
 
-
 import com.itranswarp.exchange.message.AbstractMessage;
+import com.itranswarp.exchange.support.LoggerSupport;
 import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -18,7 +17,7 @@ import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.kafka.support.TopicPartitionOffset;
 import org.springframework.kafka.support.converter.MessageConverter;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,9 +29,8 @@ import java.util.regex.Pattern;
 /**
  * 接收和发送消息的入口
  */
-@Slf4j
-@Service
-public class MessagingFactory {
+@Component
+public class MessagingFactory extends LoggerSupport {
 
     @Autowired
     private MessageTypes messageTypes;
@@ -48,7 +46,7 @@ public class MessagingFactory {
 
     @PostConstruct
     public void init() throws InterruptedException, ExecutionException {
-        log.info("init kafka admin...");
+        logger.info("init kafka admin...");
         try (AdminClient client = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
             // 查询当前所有topic:
             Set<String> allTopics = client.listTopics().names().get();
@@ -62,16 +60,16 @@ public class MessagingFactory {
             if (!newTopics.isEmpty()) {
                 client.createTopics(newTopics);
                 newTopics.forEach(t -> {
-                    log.warn("auto-create kafka topics when init MessagingFactory: {}", t);
+                    logger.warn("auto-create kafka topics when init MessagingFactory: {}", t);
                 });
             }
         }
-        log.info("init MessagingFactory ok.");
+        logger.info("init MessagingFactory ok.");
     }
 
     public <T extends AbstractMessage> MessageProducer<T> createMessageProducer(Messaging.Topic topic,
                                                                                 Class<T> messageClass) {
-        log.info("try create message producer for topic {}...", topic);
+        logger.info("try create message producer for topic {}...", topic);
         final String name = topic.name();
         return new MessageProducer<>() {
             @Override
@@ -88,7 +86,7 @@ public class MessagingFactory {
 
     public <T extends AbstractMessage> MessageConsumer createBatchMessageListener(Messaging.Topic topic, String groupId,
                                                                                   BatchMessageHandler<T> messageHandler, CommonErrorHandler errorHandler) {
-        log.info("try create batch message listener for topic {}: group id = {}...", topic, groupId);
+        logger.info("try create batch message listener for topic {}: group id = {}...", topic, groupId);
         ConcurrentMessageListenerContainer<String, String> listenerContainer = listenerContainerFactory
                 .createListenerContainer(new KafkaListenerEndpointAdapter() {
                     @Override

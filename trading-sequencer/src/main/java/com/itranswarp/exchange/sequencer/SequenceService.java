@@ -1,11 +1,11 @@
-package com.itranswarp.exchange.secquencer;
+package com.itranswarp.exchange.sequencer;
 
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
-import com.itranswarp.exchange.message.event.AbstractEvent;
-import com.itranswarp.exchange.messaging.*;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,15 +13,19 @@ import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import com.itranswarp.exchange.message.event.AbstractEvent;
+import com.itranswarp.exchange.messaging.MessageConsumer;
+import com.itranswarp.exchange.messaging.MessageProducer;
+import com.itranswarp.exchange.messaging.MessageTypes;
+import com.itranswarp.exchange.messaging.Messaging;
+import com.itranswarp.exchange.messaging.MessagingFactory;
+import com.itranswarp.exchange.support.LoggerSupport;
 
 /**
  * Sequence events.
  */
-@Slf4j
 @Component
-public class SequenceService implements CommonErrorHandler {
+public class SequenceService extends LoggerSupport implements CommonErrorHandler {
 
     private static final String GROUP_ID = "SequencerGroup";
 
@@ -43,7 +47,7 @@ public class SequenceService implements CommonErrorHandler {
     @PostConstruct
     public void init() {
         Thread thread = new Thread(() -> {
-            log.info("start sequence job...");
+            logger.info("start sequence job...");
             // TODO: try get global DB lock:
             // while (!hasLock()) { sleep(10000); }
             this.messageProducer = this.messagingFactory.createMessageProducer(Messaging.Topic.TRADE,
@@ -53,7 +57,7 @@ public class SequenceService implements CommonErrorHandler {
             this.sequence = new AtomicLong(this.sequenceHandler.getMaxSequenceId());
 
             // init consumer:
-            log.info("create message consumer for {}...", getClass().getName());
+            logger.info("create message consumer for {}...", getClass().getName());
             // share same group id:
             MessageConsumer consumer = this.messagingFactory.createBatchMessageListener(Messaging.Topic.SEQUENCE,
                     GROUP_ID, this::processMessages, this);
@@ -67,7 +71,7 @@ public class SequenceService implements CommonErrorHandler {
                 }
             }
             // close message consumer:
-            log.info("close message consumer for {}...", getClass().getName());
+            logger.info("close message consumer for {}...", getClass().getName());
             consumer.stop();
             System.exit(1);
         });
@@ -77,14 +81,14 @@ public class SequenceService implements CommonErrorHandler {
 
     @PreDestroy
     public void shutdown() {
-        log.info("shutdown sequence service...");
+        logger.info("shutdown sequence service...");
         running = false;
         if (jobThread != null) {
             jobThread.interrupt();
             try {
                 jobThread.join(5000);
             } catch (InterruptedException e) {
-                log.error("interrupt job thread failed", e);
+                logger.error("interrupt job thread failed", e);
             }
             jobThread = null;
         }
@@ -98,7 +102,7 @@ public class SequenceService implements CommonErrorHandler {
     @Override
     public void handleBatch(Exception thrownException, ConsumerRecords<?, ?> data, Consumer<?, ?> consumer,
                             MessageListenerContainer container, Runnable invokeListener) {
-        log.error("batch error!", thrownException);
+        logger.error("batch error!", thrownException);
         panic();
     }
 
@@ -111,23 +115,23 @@ public class SequenceService implements CommonErrorHandler {
             panic();
             return;
         }
-        if (log.isInfoEnabled()) {
-            log.info("do sequence for {} messages...", messages.size());
+        if (logger.isInfoEnabled()) {
+            logger.info("do sequence for {} messages...", messages.size());
         }
         long start = System.currentTimeMillis();
         List<AbstractEvent> sequenced = null;
         try {
             sequenced = this.sequenceHandler.sequenceMessages(this.messageTypes, this.sequence, messages);
         } catch (Throwable e) {
-            log.error("exception when do sequence", e);
+            logger.error("exception when do sequence", e);
             shutdown();
             panic();
             throw new Error(e);
         }
 
-        if (log.isInfoEnabled()) {
+        if (logger.isInfoEnabled()) {
             long end = System.currentTimeMillis();
-            log.info("sequenced {} messages in {} ms. current sequence id: {}", messages.size(), (end - start),
+            logger.info("sequenced {} messages in {} ms. current sequence id: {}", messages.size(), (end - start),
                     this.sequence.get());
         }
         sendMessages(sequenced);

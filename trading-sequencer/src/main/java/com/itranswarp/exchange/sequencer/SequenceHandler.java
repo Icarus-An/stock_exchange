@@ -1,4 +1,4 @@
-package com.itranswarp.exchange.secquencer;
+package com.itranswarp.exchange.sequencer;
 
 
 import com.itranswarp.exchange.db.DbTemplate;
