@@ -1,5 +1,6 @@
 package com.itranswarp.exchange.assets;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -17,5 +18,10 @@ public class Asset {
     public Asset(BigDecimal available, BigDecimal frozen) {
         this.available = available;
         this.frozen = frozen;
+    }
+
+    @JsonIgnore
+    public BigDecimal getTotal() {
+        return available.add(frozen);
     }
 }
